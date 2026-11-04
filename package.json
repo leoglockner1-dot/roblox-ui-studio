@@ -1,0 +1,52 @@
+{
+  "name": "roblox-ui-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A visual design studio for Roblox game interfaces, with Luau/rbxmx export and a Claude (MCP) integration.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/build-node.mjs",
+    "start": "node dist/server.mjs",
+    "mcp": "node dist/mcp.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fontsource/arimo": "^5.3.0",
+    "@fontsource/bangers": "^5.3.0",
+    "@fontsource/fredoka": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/luckiest-guy": "^5.3.0",
+    "@fontsource/michroma": "^5.3.0",
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "@fontsource/oswald": "^5.3.0",
+    "@fontsource/permanent-marker": "^5.3.0",
+    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/roboto": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.1",
+    "@fontsource/titillium-web": "^5.3.0",
+    "@fontsource/ubuntu": "^5.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
+  }
+}
