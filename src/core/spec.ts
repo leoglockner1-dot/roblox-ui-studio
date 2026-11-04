@@ -140,13 +140,18 @@ export function findComponentId(doc: DesignDocument, ref: string): string | null
  * Turn a spec into DesignNodes (root first), ready for an `insert` op.
  * Validates every class and property; throws SpecError with a path on failure.
  */
-export function buildNodes(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, path = "root"): DesignNode[] {
+export interface BuildOptions {
+  /** Silently drop token bindings whose token no longer exists (used by presets). */
+  lenientTokens?: boolean;
+}
+
+export function buildNodes(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, path = "root", opts: BuildOptions = {}): DesignNode[] {
   const out: DesignNode[] = [];
-  build(doc, spec, parentId, path, out);
+  build(doc, spec, parentId, path, out, opts);
   return out;
 }
 
-function build(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, path: string, out: DesignNode[]): NodeId {
+function build(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, path: string, out: DesignNode[], opts: BuildOptions): NodeId {
   if (!spec || typeof spec !== "object") throw new SpecError("spec must be an object", path);
   const id = newId();
   let className = spec.className;
@@ -180,7 +185,10 @@ function build(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, pat
     tokens = {};
     for (const [k, ref] of Object.entries(spec.tokens)) {
       const tid = resolveTokenId(doc, ref);
-      if (!tid) throw new SpecError(`token "${ref}" not found`, path);
+      if (!tid) {
+        if (opts.lenientTokens) continue;
+        throw new SpecError(`token "${ref}" not found`, path);
+      }
       tokens[k] = tid;
     }
   }
@@ -190,7 +198,7 @@ function build(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, pat
     parent: parentId,
     props,
     instance,
-    tokens,
+    tokens: tokens && Object.keys(tokens).length ? tokens : undefined,
   });
   if (spec.notes) node.notes = spec.notes;
   out.push(node);
@@ -202,7 +210,7 @@ function build(doc: DesignDocument, spec: NodeSpec, parentId: NodeId | null, pat
   kids.forEach((c, i) => {
     if (!isGuiClass(className) && className !== "ScreenGui")
       throw new SpecError(`${className} cannot have children`, path);
-    const cid = build(doc, c, id, `${path}.children[${i}]${c?.name ? `(${c.name})` : ""}`, out);
+    const cid = build(doc, c, id, `${path}.children[${i}]${c?.name ? `(${c.name})` : ""}`, out, opts);
     node.children.push(cid);
   });
   return id;
