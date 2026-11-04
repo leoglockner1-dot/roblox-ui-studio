@@ -60,19 +60,29 @@ const icon = (name: string, props: Record<string, unknown> = {}, extra: Partial<
   ...extra,
 });
 
-function primaryButton(text = "PLAY", w = 200, h = 56, from = "#6B95FF", to = C.primaryDark): NodeSpec {
+/**
+ * Gradient button. In Roblox a UIGradient tints its parent's background AND
+ * text, so the gradient sits on the button and the label is a separate child
+ * (children are not affected by their parent's UIGradient).
+ */
+function primaryButton(text = "PLAY", w = 200, h = 56, from = "#6B95FF", to = C.primaryDark, name = "PrimaryButton"): NodeSpec {
   return {
     className: "TextButton",
-    name: "PrimaryButton",
-    props: {
-      Text: text, Size: [0, w, 0, h], BackgroundColor3: "#FFFFFF", AutoButtonColor: true,
-      FontFace: DISPLAY(), TextSize: 22, TextColor3: "#FFFFFF",
-    },
-    tokens: {},
+    name,
+    props: { Text: "", Size: [0, w, 0, h], BackgroundColor3: "#FFFFFF", AutoButtonColor: true },
     corner: 12,
     gradient: { Color: [{ t: 0, color: from }, { t: 1, color: to }], Rotation: 90 },
     stroke: { Color: "#0B1230", Thickness: 2, Transparency: 0.35, ApplyStrokeMode: "Border" },
+    children: [label("Label", text, { Size: [1, 0, 1, 0], FontFace: DISPLAY(), TextSize: 22, TextColor3: "#FFFFFF" })],
   };
+}
+
+/** primaryButton with a different size/position (keeps its structure). */
+function sizedButton(text: string, props: Record<string, unknown>, from?: string, to?: string, name?: string, textSize = 18): NodeSpec {
+  const b = primaryButton(text, 0, 0, from, to, name);
+  b.props = { ...b.props, ...props };
+  b.children![0].props = { ...b.children![0].props, TextSize: textSize };
+  return b;
 }
 
 export const PRESETS: Preset[] = [
@@ -100,10 +110,7 @@ export const PRESETS: Preset[] = [
     name: "Buy Button (Robux)",
     category: "Buttons",
     description: "Green purchase button with price label.",
-    spec: {
-      ...primaryButton("R$ 99", 160, 52, "#55E89A", "#1FA862"),
-      name: "BuyButton",
-    },
+    spec: primaryButton("R$ 99", 160, 52, "#55E89A", "#1FA862", "BuyButton"),
   },
   {
     id: "button-icon",
@@ -214,9 +221,9 @@ export const PRESETS: Preset[] = [
     description: "Square slot with rarity border, icon area and stack count.",
     spec: {
       className: "ImageButton", name: "InventorySlot",
-      props: { Size: [0, 88, 0, 88], BackgroundColor3: C.surface2, BackgroundTransparency: 0, AutoButtonColor: true },
+      props: { Size: [0, 88, 0, 88], BackgroundColor3: "#FFFFFF", BackgroundTransparency: 0, AutoButtonColor: true },
       corner: 12, stroke: { Color: RARITY.Rare, Thickness: 2.5, ApplyStrokeMode: "Border" },
-      gradient: { Color: [{ t: 0, color: "#FFFFFF" }, { t: 1, color: "#9FB4FF" }], Rotation: 90, Transparency: [{ t: 0, value: 0 }, { t: 1, value: 0 }] },
+      gradient: { Color: [{ t: 0, color: "#2E3B5C" }, { t: 1, color: "#1C2333" }], Rotation: 90 },
       children: [
         icon("Icon", { Size: [0.7, 0, 0.7, 0], Position: [0.5, 0, 0.5, 0], AnchorPoint: [0.5, 0.5] }),
         label("Count", "x3", { Size: [0, 40, 0, 20], Position: [1, -6, 1, -4], AnchorPoint: [1, 1], FontFace: DISPLAY(), TextSize: 14, TextXAlignment: "Right", TextStrokeTransparency: 0.3 }),
@@ -234,7 +241,7 @@ export const PRESETS: Preset[] = [
       corner: 14, stroke: { Color: RARITY.Epic, Thickness: 2, Transparency: 0.1, ApplyStrokeMode: "Border" },
       children: [
         {
-          className: "Frame", name: "Art", props: { Size: [1, -16, 0, 112], Position: [0, 8, 0, 8], BackgroundColor3: "#2B1F45" },
+          className: "Frame", name: "Art", props: { Size: [1, -16, 0, 112], Position: [0, 8, 0, 8], BackgroundColor3: "#FFFFFF" },
           corner: 10, gradient: { Color: [{ t: 0, color: "#5B3A9A" }, { t: 1, color: "#20163A" }], Rotation: 90 },
           children: [icon("Icon", { Size: [0.8, 0, 0.8, 0], Position: [0.5, 0, 0.5, 0], AnchorPoint: [0.5, 0.5] })],
         },
@@ -254,7 +261,7 @@ export const PRESETS: Preset[] = [
       corner: 16, stroke: { Color: C.accent, Thickness: 2, Transparency: 0.2, ApplyStrokeMode: "Border" },
       children: [
         {
-          className: "Frame", name: "Art", props: { Size: [1, -16, 0, 140], Position: [0, 8, 0, 8], BackgroundColor3: "#3A2A10" },
+          className: "Frame", name: "Art", props: { Size: [1, -16, 0, 140], Position: [0, 8, 0, 8], BackgroundColor3: "#FFFFFF" },
           corner: 12, gradient: { Color: [{ t: 0, color: "#FFB52E" }, { t: 1, color: "#7A3E00" }], Rotation: 90 },
           children: [icon("Icon", { Size: [0.75, 0, 0.75, 0], Position: [0.5, 0, 0.5, 0], AnchorPoint: [0.5, 0.5] })],
         },
@@ -265,7 +272,7 @@ export const PRESETS: Preset[] = [
         },
         label("Title", "Starter Pack", { Size: [1, -16, 0, 24], Position: [0, 8, 0, 156], FontFace: DISPLAY("Bold"), TextSize: 18 }),
         label("Subtitle", "5,000 coins + pet", { Size: [1, -16, 0, 18], Position: [0, 8, 0, 180], TextSize: 13, TextColor3: C.muted }),
-        { ...primaryButton("R$ 199", 0, 44, "#55E89A", "#1FA862"), name: "Buy", props: { ...primaryButton().props, Text: "R$ 199", Size: [1, -16, 0, 44], Position: [0, 8, 1, -8], AnchorPoint: [0, 1], TextSize: 18 } },
+        sizedButton("R$ 199", { Size: [1, -16, 0, 44], Position: [0, 8, 1, -8], AnchorPoint: [0, 1] }, "#55E89A", "#1FA862", "Buy"),
       ],
     },
   },
@@ -363,7 +370,7 @@ export const PRESETS: Preset[] = [
               list: { FillDirection: "Horizontal", HorizontalAlignment: "Right", Padding: 12 },
               children: [
                 { className: "TextButton", name: "Cancel", props: { Text: "Cancel", Size: [0, 140, 1, 0], BackgroundColor3: C.surface2, FontFace: DISPLAY("Bold"), TextSize: 18, TextColor3: C.text, LayoutOrder: 1 }, corner: 12, stroke: { Color: C.line, Thickness: 2, ApplyStrokeMode: "Border" } },
-                { ...primaryButton("Sell", 140, 52, "#FF7A7F", "#D63A40"), name: "Confirm", props: { ...primaryButton().props, Text: "Sell", Size: [0, 140, 1, 0], LayoutOrder: 2, TextSize: 18 } },
+                sizedButton("Sell", { Size: [0, 140, 1, 0], LayoutOrder: 2 }, "#FF7A7F", "#D63A40", "Confirm"),
               ],
             },
           ],
@@ -462,11 +469,11 @@ export const PRESETS: Preset[] = [
           className: "Frame", name: "Details", props: { Size: [0.38, -16, 1, -64], Position: [1, 0, 0, 64], AnchorPoint: [1, 0], BackgroundColor3: C.surface2 },
           corner: 16, padding: 16, list: { Padding: 10, HorizontalAlignment: "Center" },
           children: [
-            { className: "Frame", name: "Preview", props: { Size: [1, 0, 0, 160], BackgroundColor3: "#2B1F45", LayoutOrder: 1 }, corner: 12, gradient: { Color: [{ t: 0, color: "#5B3A9A" }, { t: 1, color: "#20163A" }], Rotation: 90 } },
+            { className: "Frame", name: "Preview", props: { Size: [1, 0, 0, 160], BackgroundColor3: "#FFFFFF", LayoutOrder: 1 }, corner: 12, gradient: { Color: [{ t: 0, color: "#5B3A9A" }, { t: 1, color: "#20163A" }], Rotation: 90 } },
             label("ItemName", "Void Blade", { Size: [1, 0, 0, 28], FontFace: DISPLAY(), TextSize: 22, TextXAlignment: "Left", LayoutOrder: 2 }),
             label("Rarity", "EPIC", { Size: [1, 0, 0, 16], FontFace: DISPLAY(), TextSize: 13, TextColor3: RARITY.Epic, TextXAlignment: "Left", LayoutOrder: 3 }),
             label("Description", "A blade forged in the void. +40 damage, +10% crit chance.", { Size: [1, 0, 0, 0], AutomaticSize: "Y", TextSize: 14, TextColor3: C.muted, TextXAlignment: "Left", TextWrapped: true, LayoutOrder: 4 }),
-            { ...primaryButton("EQUIP", 0, 52), name: "Equip", props: { ...primaryButton().props, Text: "EQUIP", Size: [1, 0, 0, 52], LayoutOrder: 5 } },
+            sizedButton("EQUIP", { Size: [1, 0, 0, 52], LayoutOrder: 5 }, undefined, undefined, "Equip", 20),
           ],
         },
       ],

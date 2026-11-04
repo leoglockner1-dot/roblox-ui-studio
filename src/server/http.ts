@@ -23,6 +23,8 @@ export interface ServerOptions {
   /** Directory with the built editor (dist/editor). */
   staticDir?: string;
   quiet?: boolean;
+  /** Install directory (reported to the editor for MCP setup instructions). */
+  installDir?: string;
 }
 
 const MIME: Record<string, string> = {
@@ -129,7 +131,7 @@ export function startServer(opts: ServerOptions) {
         broadcast(e);
         return send(res, 200, { ok: true });
       }
-      if (p === "/api/health") return send(res, 200, { ok: true, app: "roblox-ui-studio", workspace: store.root, tools: TOOLS.length });
+      if (p === "/api/health") return send(res, 200, { ok: true, app: "roblox-ui-studio", workspace: store.root, installDir: opts.installDir ?? null, tools: TOOLS.length });
 
       // --- tools
       if (p === "/api/tools" && req.method === "GET")

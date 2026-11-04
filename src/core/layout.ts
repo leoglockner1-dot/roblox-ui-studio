@@ -277,7 +277,13 @@ function placeNode(
     if (CLASSES[n.className]?.isScrolling) {
       const cs = propOf<UDim2>(n, "CanvasSize");
       const cp = propOf<Vector2>(n, "CanvasPosition");
-      const canvas: Rect = { x: box.x - cp.x, y: box.y - cp.y, w: box.w * cs.xs + cs.xo * childK, h: box.h * cs.ys + cs.yo * childK };
+      // Roblox: AbsoluteCanvasSize is never smaller than the visible window.
+      const canvas: Rect = {
+        x: box.x - cp.x,
+        y: box.y - cp.y,
+        w: Math.max(box.w, box.w * cs.xs + cs.xo * childK),
+        h: Math.max(box.h, box.h * cs.ys + cs.yo * childK),
+      };
       box.canvas = canvas;
       childArea = paddedRect(canvas, m.padding, childK);
       box.content = childArea;
@@ -438,8 +444,12 @@ function layoutChildren(ctx: Ctx, n: ResolvedNode, area: Rect, k: number, visibl
   const padU = propOf<UDim>(layout, "Padding");
   const gap = ud(padU, vertical ? area.h : area.w, k);
   const sizes = visibleItems.map((c) => {
-    const cm = modifiersOf(c);
-    const s = baseSize(c, area, k, cm);
+    // Items with AutomaticSize are measured by a full placement first (their final size depends on content).
+    if (propOf<string>(c, "AutomaticSize") !== "None") {
+      const b = placeNode(ctx, c, parentId, area, k, visible);
+      return { c, w: b.w, h: b.h };
+    }
+    const s = baseSize(c, area, k, modifiersOf(c));
     return { c, w: s.w, h: s.h };
   });
 

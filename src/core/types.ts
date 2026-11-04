@@ -141,6 +141,19 @@ export interface Page {
   name: string;
   /** Top-level nodes on this page (usually ScreenGuis or loose frames/components). */
   children: NodeId[];
+  /** Reference images placed on the canvas (design-time only, never exported). */
+  references?: CanvasReference[];
+}
+
+export interface CanvasReference {
+  id: string;
+  assetId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  opacity: number;
+  locked?: boolean;
 }
 
 export interface ComponentDef {

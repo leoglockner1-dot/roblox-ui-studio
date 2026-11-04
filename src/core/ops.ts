@@ -11,6 +11,7 @@ import { ancestors, clone, descendants } from "./document";
 import { coerceProp } from "./schema";
 import type {
   Animation,
+  CanvasReference,
   ComponentDef,
   DesignDocument,
   DesignNode,
@@ -44,7 +45,7 @@ export type Op =
   | { type: "override"; instanceId: NodeId; key: string; props: PropPatch }
   | { type: "addPage"; page: Page; index?: number }
   | { type: "removePage"; id: string }
-  | { type: "updatePage"; id: string; name: string }
+  | { type: "updatePage"; id: string; name?: string; references?: CanvasReference[] }
   | { type: "movePage"; id: string; index: number }
   | { type: "setComponent"; id: string; def: ComponentDef | null }
   | { type: "setTokens"; tokens: DesignTokens }
@@ -324,10 +325,19 @@ function applyOne(d: Draft, op: Op): Op[] {
 
     case "updatePage": {
       const p = d.page(op.id);
-      if (!op.name.trim()) throw new OpError("page name must not be empty");
-      const prev = p.name;
-      p.name = op.name.trim();
-      return [{ type: "updatePage", id: op.id, name: prev }];
+      const inv: Op = { type: "updatePage", id: op.id };
+      if (op.name !== undefined) {
+        if (!op.name.trim()) throw new OpError("page name must not be empty");
+        inv.name = p.name;
+        p.name = op.name.trim();
+      }
+      if (op.references !== undefined) {
+        for (const r of op.references)
+          if (!r.id || !r.assetId || ![r.x, r.y, r.w, r.h, r.opacity].every(Number.isFinite)) throw new OpError("invalid canvas reference");
+        inv.references = clone(p.references ?? []);
+        p.references = clone(op.references);
+      }
+      return [inv];
     }
 
     case "movePage": {

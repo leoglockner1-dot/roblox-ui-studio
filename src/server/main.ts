@@ -10,5 +10,5 @@ const port = Number(process.env.RUIS_PORT ?? 5178);
 const store = new Store(defaultWorkspace(path.resolve(here, "..")));
 const staticDir = process.env.RUIS_STATIC ?? path.resolve(here, "editor");
 
-startServer({ port, store, staticDir });
+startServer({ port, store, staticDir, installDir: path.resolve(here, "..") });
 console.log(`Roblox UI Studio running at http://127.0.0.1:${port}  (workspace: ${store.root})`);

@@ -25,6 +25,7 @@ import { coerceProp, coerceValue, describeType, normalizeColor } from "../core/s
 import { buildNodes, findComponentId, overrideKeyFromPath, SpecError, toSpec, type NodeSpec } from "../core/spec";
 import { animationDuration, isTweenable, sampleAnimation, EASING_STYLES } from "../core/animation";
 import { validateDocument } from "../core/validate";
+import { cloneSubtree, detachOps, groupOps, topOf, ungroupOps } from "../core/edit";
 import type { Animation, AnimationTrack, DesignDocument, DesignNode, DesignTokens, Keyframe, Props } from "../core/types";
 import { DESIGN_GUIDE } from "./guide";
 import { outline, resolveRef, ToolError, layoutFor } from "./refs";
@@ -541,18 +542,6 @@ tool({
   },
 });
 
-function cloneSubtree(d: DesignDocument, rootId: string, parent: string | null): DesignNode[] {
-  const map = new Map<string, string>();
-  const ids = [rootId, ...descendants(d, rootId)];
-  for (const id of ids) map.set(id, newId());
-  return ids.map((id) => {
-    const n = structuredClone(d.nodes[id]);
-    const copy: DesignNode = { ...n, id: map.get(id)!, parent: id === rootId ? parent : map.get(n.parent!)!, children: n.children.map((c) => map.get(c)!) };
-    delete copy.componentId; // copies of masters become plain nodes
-    return copy;
-  });
-}
-
 tool({
   name: "duplicate_element",
   title: "Duplicate element",
@@ -635,50 +624,11 @@ tool({
     const ids = refs.map((r) => r.storedId!);
     const parent = d.nodes[ids[0]].parent;
     if (!parent || ids.some((id) => d.nodes[id].parent !== parent)) throw new ToolError("all nodes must share the same (non-top-level) parent");
-    const ops = groupOps(d, ids, parent, a.name ?? "Group");
+    const ops = groupOps(d, layoutFor(d, topOf(d, parent))!.layout, ids, parent, a.name ?? "Group");
     const doc = await commit(ctx, a.documentId, ops.ops, "Group");
     return { ok: true, revision: doc.revision, groupId: ops.groupId };
   },
 });
-
-/** Build ops to group nodes (shared with the editor via the same logic in core). */
-export function groupOps(d: DesignDocument, ids: string[], parent: string, name: string): { ops: Op[]; groupId: string } {
-  const root = (() => {
-    let cur = d.nodes[parent];
-    while (cur.parent) cur = d.nodes[cur.parent];
-    return cur.id;
-  })();
-  const l = layoutFor(d, root)!;
-  const pbox = l.layout.get(parent)!;
-  const boxes = ids.map((id) => l.layout.get(id)!);
-  const minX = Math.min(...boxes.map((b) => b.x));
-  const minY = Math.min(...boxes.map((b) => b.y));
-  const maxX = Math.max(...boxes.map((b) => b.x + b.w));
-  const maxY = Math.max(...boxes.map((b) => b.y + b.h));
-  const group = makeNode("Frame", {
-    name, parent,
-    props: { BackgroundTransparency: 1, BorderSizePixel: 0, Position: { xs: 0, xo: Math.round(minX - pbox.content.x), ys: 0, yo: Math.round(minY - pbox.content.y) }, Size: { xs: 0, xo: Math.round(maxX - minX), ys: 0, yo: Math.round(maxY - minY) } },
-  });
-  const order = d.nodes[parent].children;
-  const sorted = [...ids].sort((x, y) => order.indexOf(x) - order.indexOf(y));
-  const ops: Op[] = [{ type: "insert", nodes: [group], index: order.indexOf(sorted[0]) }];
-  sorted.forEach((id, i) => {
-    const b = l.layout.get(id)!;
-    const n = d.nodes[id];
-    const anchor = (n.props.AnchorPoint as { x: number; y: number }) ?? { x: 0, y: 0 };
-    const size = (n.props.Size as { xs: number; xo: number; ys: number; yo: number }) ?? { xs: 0, xo: 100, ys: 0, yo: 100 };
-    ops.push({ type: "move", id, parentId: group.id, index: i });
-    // Re-express position in offset relative to the group (sizes in scale are converted to offset to stay put).
-    ops.push({
-      type: "update", id,
-      props: {
-        Position: { xs: 0, xo: Math.round(b.x - minX + anchor.x * b.w), ys: 0, yo: Math.round(b.y - minY + anchor.y * b.h) },
-        ...(size.xs || size.ys ? { Size: { xs: 0, xo: Math.round(b.w), ys: 0, yo: Math.round(b.h) } } : {}),
-      },
-    });
-  });
-  return { ops, groupId: group.id };
-}
 
 tool({
   name: "ungroup_element",
@@ -690,25 +640,7 @@ tool({
     const r = resolveRef(d, a.nodeId);
     const g = r.storedId ? d.nodes[r.storedId] : null;
     if (!g || !g.parent) throw new ToolError("can only ungroup a nested (non top-level) stored node");
-    const root = (() => {
-      let cur = g;
-      while (cur.parent) cur = d.nodes[cur.parent];
-      return cur.id;
-    })();
-    const l = layoutFor(d, root)!;
-    const pbox = l.layout.get(g.parent)!;
-    const idx = d.nodes[g.parent].children.indexOf(g.id);
-    const ops: Op[] = [];
-    let i = 0;
-    for (const cid of g.children) {
-      const c = d.nodes[cid];
-      if (CLASSES[c.className].kind !== "gui") continue;
-      const b = l.layout.get(cid)!;
-      const anchor = (c.props.AnchorPoint as { x: number; y: number }) ?? { x: 0, y: 0 };
-      ops.push({ type: "move", id: cid, parentId: g.parent, index: idx + i++ });
-      ops.push({ type: "update", id: cid, props: { Position: { xs: 0, xo: Math.round(b.x - pbox.content.x + anchor.x * b.w), ys: 0, yo: Math.round(b.y - pbox.content.y + anchor.y * b.h) } } });
-    }
-    ops.push({ type: "remove", id: g.id });
+    const ops = ungroupOps(d, layoutFor(d, topOf(d, g.id))!.layout, g.id);
     const doc = await commit(ctx, a.documentId, ops, "Ungroup");
     return { ok: true, revision: doc.revision };
   },
@@ -846,25 +778,6 @@ tool({
     return { ok: true, revision: doc.revision, nodeId: ops.newId };
   },
 });
-
-/** Replace an instance with a plain copy of its resolved tree. */
-export function detachOps(d: DesignDocument, instId: string): { ops: Op[]; newId: string } {
-  const inst = d.nodes[instId];
-  const tree = resolveTree(d, instId)!;
-  const nodes: DesignNode[] = [];
-  const build = (n: typeof tree, parent: string | null): string => {
-    const id = newId();
-    const rec = makeNode(n.className, { id, name: n.name, parent, props: structuredClone(n.props) });
-    nodes.push(rec);
-    rec.children = n.children.map((c) => build(c, id));
-    return id;
-  };
-  const rootId = build(tree, inst.parent);
-  if (inst.canvas) nodes[0].canvas = { ...inst.canvas };
-  const siblings = inst.parent ? d.nodes[inst.parent].children : d.pages.find((p) => p.children.includes(instId))!.children;
-  const pageId = inst.parent ? undefined : d.pages.find((p) => p.children.includes(instId))!.id;
-  return { ops: [{ type: "remove", id: instId }, { type: "insert", nodes, index: siblings.indexOf(instId), pageId }], newId: rootId };
-}
 
 tool({
   name: "create_component_variant",
