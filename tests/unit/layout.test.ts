@@ -165,4 +165,28 @@ describe("layout: automatic sizing, scrolling, text", () => {
     expect(box("R0").y).toBe(-30);
     expect(box("R3").y).toBe(120);
   });
+
+  it("regression: a ScrollingFrame canvas is never smaller than its window (grids fill the width)", () => {
+    const { box } = layoutOf({
+      className: "ScrollingFrame", name: "S", props: { Size: [0, 300, 0, 200], CanvasSize: [0, 0, 0, 0] },
+      grid: { CellSize: [0, 90, 0, 90], CellPadding: [0, 10, 0, 10] },
+      children: [0, 1, 2, 3].map((i) => ({ className: "Frame", name: `C${i}`, props: { LayoutOrder: i } })),
+    });
+    expect(box("S").canvas!.w).toBe(300);
+    expect(box("C2")).toMatchObject({ x: 200, y: 0 });
+    expect(box("C3")).toMatchObject({ x: 0, y: 100 });
+  });
+
+  it("regression: list layouts use the AutomaticSize-grown size of items", () => {
+    const { box } = layoutOf({
+      className: "Frame", name: "L", props: { Size: [0, 200, 0, 400] }, list: { Padding: 10 },
+      children: [
+        { className: "Frame", name: "Grow", props: { Size: [1, 0, 0, 0], AutomaticSize: "Y", LayoutOrder: 1 }, children: [{ className: "Frame", name: "Inner", props: { Size: [0, 50, 0, 80] } }] },
+        { className: "Frame", name: "Next", props: { Size: [1, 0, 0, 20], LayoutOrder: 2 } },
+      ],
+    });
+    expect(box("Grow").h).toBe(80);
+    expect(box("Next").y).toBe(90);
+  });
 });
+

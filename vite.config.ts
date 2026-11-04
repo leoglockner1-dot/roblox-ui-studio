@@ -15,6 +15,7 @@ export default defineConfig({
   test: {
     root: ".",
     include: ["tests/unit/**/*.test.ts"],
+    exclude: ["node_modules", ".test-dist", "dist"],
     environment: "node",
   },
 } as any);
